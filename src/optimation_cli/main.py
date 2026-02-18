@@ -5,17 +5,25 @@ from pathlib import Path
 
 import typer
 
+from .fastapi_template import create_fastapi_template
+from .flask_template import create_flask_template
 from .models import CliAiProvider, Template
+from .worker_template import create_worker_template
 
 
 
 app = typer.Typer(help="Optimation CLI")
 
 
-def _slug(name: str) -> str:
+def _package_name(name: str) -> str:
     name = name.strip().lower()
-    name = re.sub(r"[^a-z0-9]+", "-", name)
-    return name.strip("-") or "optimation-project"
+    name = re.sub(r"[^a-z0-9_]+", "_", name)
+    name = re.sub(r"_+", "_", name).strip("_")
+    if not name:
+        return "optimation_project"
+    if name[0].isdigit():
+        return f"optimation_{name}"
+    return name
 
 
 @app.command()
@@ -29,7 +37,7 @@ def init(
     Crée un projet standard Optimation (api/domain/services).
     Simple, sans templates complexes pour l’instant.
     """
-    project = _slug(name)
+    project = _package_name(name)
     root = Path(path)
 
     if root.exists() and path != '.':
@@ -55,7 +63,7 @@ def init(
         encoding="utf-8",
     )
 
-    if coding_agent == 'codex':
+    if coding_agent == CliAiProvider.CODEX:
         (root / "AGENT.md").write_text(
             """
                 Yo man ho yo do today
@@ -63,25 +71,20 @@ def init(
             """
         )
 
-    # Template simple: worker vs fastapi (placeholder)
-    if template == "fastapi":
-        (root / "src" / project / "main.py").write_text(
-            "def main():\n    print('Hello from FastAPI template (TODO)')\n\n"
-            "if __name__ == '__main__':\n    main()\n",
-            encoding="utf-8",
-        )
+    if template == Template.FLASK:
+        create_flask_template(root, project)
+    elif template == Template.FAST_API:
+        create_fastapi_template(root, project)
+    elif template == Template.WORKER:
+        create_worker_template(root, project)
     else:
-        (root / "src" / project / "main.py").write_text(
-            "def main():\n    print('Hello from worker template')\n\n"
-            "if __name__ == '__main__':\n    main()\n",
-            encoding="utf-8",
-        )
+        raise typer.BadParameter(f"Unsupported template: {template}")
 
-    typer.echo(f"✅ Created project: {root}")
+    typer.echo(f"Created project: {root}")
 
 @app.command()
 def doctor():
-    typer.echo("🧑‍⚕️ i'm a doctor")
+    typer.echo("Doctor check: OK")
 
     
 if __name__ == "__main__":
