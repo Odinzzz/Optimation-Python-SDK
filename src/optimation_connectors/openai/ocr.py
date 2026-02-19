@@ -2,6 +2,9 @@
 
 from typing import Any
 from openai import OpenAI
+from openai import BadRequestError
+
+from optimation_core.exceptions import ApiError
 
 class OcrApi:
     def __init__(self, client: OpenAI = None):
@@ -36,7 +39,7 @@ class OcrApi:
                 )
             
         content = [{"type": "input_text", "text": prompt}]
-
+        #  TODO; ici un a un bug si aucun mime_type est passer on a un crash
         if url and 'image' in mime_type:
             content.append({"type": "input_image", "image_url": url})
         elif url:    
@@ -64,8 +67,7 @@ class OcrApi:
         base64_data: str = None,
         file_id: str = None,
         prompt: str = "Analyse ce document.",
-        model: str = "gpt-4o",
-        parse: bool = False,
+        model: str = "gpt-5.2",
         schema: Any = None,
         system_prompt: str = None,
         mime_type: str = "application/pdf",
@@ -75,9 +77,45 @@ class OcrApi:
 
         kwargs = {"model": model, "input": messages}
 
-        if parse and schema:
+        if schema:
             kwargs["text_format"] = schema
 
-        response = self.client.responses.parse(**kwargs)
+        try:
+            response = self.client.responses.parse(**kwargs)
+        except BadRequestError as e:
+            status = getattr(e, "status_code", 400)
 
-        return response.output_parsed if (parse and schema) else response.output_text
+            # Essaye de récupérer le body JSON propre
+            error_data = None
+            if hasattr(e, "response") and e.response is not None:
+                try:
+                    error_data = e.response.json()
+                except Exception:
+                    pass
+
+            # Fallback sur le message string
+            message = str(e)
+
+            # Extraire infos si possible
+            error_code = None
+            error_type = None
+            error_param = None
+
+            if error_data and "error" in error_data:
+                err = error_data["error"]
+                message = err.get("message", message)
+                error_code = err.get("code")
+                error_type = err.get("type")
+                error_param = err.get("param")
+
+            raise ApiError(
+                url='openAI Api',
+                status_code=status,
+                message=message,
+                details={
+                    'code': error_code,
+                    'error_type': error_type,
+                    'param': error_param}
+            ) from e
+
+        return response.output_parsed if (schema) else response.output_text
