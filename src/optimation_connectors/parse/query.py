@@ -21,3 +21,6 @@ class QueryApi:
         # Parse: GET /classes/<ClassName>/<objectId>
         data = self._http.get(f"/classes/{class_name}/{object_id}")
         return data if isinstance(data, dict) else {"data": data}
+    
+    def update_object(self, class_name: str, object_id: str, json:dict):
+        data = self._http.put(f'classes/{class_name}/{object_id}', json=json)
