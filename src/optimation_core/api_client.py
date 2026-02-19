@@ -75,3 +75,12 @@ class ApiClient:
 
     def post(self, path: str, *, json: Any = None, data: Any = None, **kw: Any) -> Any:
         return self.request("POST", path, json=json, data=data, **kw)
+
+    def put(self, path: str, *, json: Any = None, data: Any = None, **kw: Any) -> Any:
+        return self.request("PUT", path, json=json, data=data, **kw)
+
+    def patch(self, path: str, *, json: Any = None, data: Any = None, **kw: Any) -> Any:
+        return self.request("PATCH", path, json=json, data=data, **kw)
+
+    def delete(self, path: str, *, params: Optional[Mapping[str, Any]] = None, **kw: Any) -> Any:
+        return self.request("DELETE", path, params=params, **kw)
