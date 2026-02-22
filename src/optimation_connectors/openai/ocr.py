@@ -1,5 +1,3 @@
-# connector/openai/ocr.py
-
 from typing import Any
 from openai import OpenAI
 from openai import BadRequestError

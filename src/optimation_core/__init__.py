@@ -1,5 +1,3 @@
-# src/optimation_core/__init__.py
-
 from .exceptions import (
     OptimationError,
     ConfigError,

@@ -1,5 +1,3 @@
-# connector/openai/files.py
-
 from typing import Optional
 
 from openai import OpenAI

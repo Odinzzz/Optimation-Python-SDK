@@ -1,5 +1,3 @@
-# connector/openai/client.py
-
 from openai import OpenAI
 
 from .ocr import OcrApi

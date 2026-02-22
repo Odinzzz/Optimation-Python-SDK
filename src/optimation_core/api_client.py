@@ -1,5 +1,3 @@
-# src/optimation_core/api_client.py
-
 from __future__ import annotations
 
 import time
