@@ -1,5 +1,4 @@
-# connectors/openai/__init__.py
-
 from .client import OpenAiClient
+from .exceptions import OcrInputError, OcrBadMimeTypeError
 
-__all__ = ['OpenAiClient']
+__all__ = ['OpenAiClient', 'OcrInputError', 'OcrBadMimeTypeError']

@@ -5,6 +5,7 @@ from openai import OpenAI
 from openai import BadRequestError
 
 from optimation_core.exceptions import ApiError
+from .exceptions import OcrBadMimeTypeError, OcrInputError
 
 class OcrApi:
     def __init__(self, client: OpenAI = None):
@@ -14,10 +15,11 @@ class OcrApi:
     def _build_content(
         self,
         prompt: str,
-        url: str = None,
-        base64_data: str = None,
-        file_id: str = None,
-        mime_type: str = "application/pdf",
+        mime_type: str,
+        *,
+        url: str | None = None,
+        base64_data: str | None = None,
+        file_id: str | None = None,
     ) -> list:
         """Construit le contenu du message selon les inputs fournis."""
 
@@ -26,31 +28,41 @@ class OcrApi:
         sources = [url, base64_data, file_id]
 
         if sum(x is not None for x in sources) != 1:
-            raise ValueError(
+            raise OcrInputError(
                 "Exactly one of (url, base64_data, file_id) must be provided."
             )   
          
-        if mime_type:
-            accepted_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf']
+        
+        accepted_types = {'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'}
             
-            if mime_type not in accepted_types:
-                raise ValueError(
-                    f'File type {mime_type} supported use {accepted_types} file type'
-                )
+        if mime_type not in accepted_types:
+                raise OcrBadMimeTypeError(f"File type {mime_type} not supported. Use {sorted(accepted_types)}")
             
-        content = [{"type": "input_text", "text": prompt}]
-        #  TODO; ici un a un bug si aucun mime_type est passer on a un crash
-        if url and 'image' in mime_type:
-            content.append({"type": "input_image", "image_url": url})
-        elif url:    
-            content.append({"type": "input_file", "file_url": url})
-        elif file_id:
-            content.append({"type": "input_file", "file_id": file_id})
+        content: list[dict[str, Any]] = [{"type": "input_text", "text": prompt}]
+
+        is_image = bool(mime_type and mime_type.startswith("image/"))
+        
+        if url:
+            if is_image:
+                content.append({"type": "input_image", "image_url": url})
+            else:
+                content.append({"type": "input_file", "file_url": url})
+        
         elif base64_data:
-            content.append({
-                "type": "input_file",
-                "file_data": f"data:{mime_type};base64,{base64_data}",
-            })
+            if is_image:
+                content.append({
+                    "type": "input_image",
+                    "file_data": f"data:{mime_type};base64,{base64_data}",
+                })
+
+            else:    
+                content.append({
+                    "type": "input_file",
+                    "file_data": f"data:{mime_type};base64,{base64_data}",
+                })
+
+        elif file_id:
+            content.append({"type": "input_file", "file_id": file_id})            
 
         return content
 
@@ -72,7 +84,13 @@ class OcrApi:
         system_prompt: str = None,
         mime_type: str = "application/pdf",
     ) -> Any:
-        content = self._build_content(prompt, url, base64_data, file_id, mime_type)
+        content = self._build_content(
+            prompt=prompt,
+            mime_type=mime_type,
+            url=url,
+            base64_data=base64_data,
+            file_id=file_id
+        )
         messages = self._build_messages(content, system_prompt)
 
         kwargs = {"model": model, "input": messages}
