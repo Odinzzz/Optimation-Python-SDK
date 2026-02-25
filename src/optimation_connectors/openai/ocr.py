@@ -9,6 +9,7 @@ class OcrApi:
     def __init__(self, client: OpenAI = None):
         self.client = client or OpenAI()
 
+    
 
     def _build_content(
         self,
@@ -50,12 +51,14 @@ class OcrApi:
             if is_image:
                 content.append({
                     "type": "input_image",
+                    "filename": "a.pdf", #TODO fixe naming
                     "file_data": f"data:{mime_type};base64,{base64_data}",
                 })
 
             else:    
                 content.append({
                     "type": "input_file",
+                    "filename": "a.pdf", #TODO fixe naming
                     "file_data": f"data:{mime_type};base64,{base64_data}",
                 })
 
