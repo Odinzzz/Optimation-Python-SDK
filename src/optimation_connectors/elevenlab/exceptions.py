@@ -1,0 +1,1 @@
+from optimation_core import ConnectorError
