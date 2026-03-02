@@ -9,6 +9,10 @@ import tempfile
 
 from google.genai import types
 from google.genai import Client as GenaiClient
+from google.genai import errors
+
+
+from .exceptions import ResourceExhausted, ConnectorError
 
 VoiceName = Literal["Zephyr", "Puck"]
 ModelName = Literal[
@@ -24,7 +28,7 @@ class TtsApi:
     def __init__(self, client: GenaiClient | None = None):
         self._client = client or GenaiClient(api_key=os.environ.get("GEMINI_API_KEY"))
 
-    def genrate(
+    def generate(
         self,
         model: ModelName = "gemini-2.5-pro-preview-tts",
         system_prompt: str = "",
@@ -47,11 +51,40 @@ class TtsApi:
                 )
             ),
         )
-        return self._client.models.generate_content(
-            model=model,
-            contents=contents,
-            config=generate_content_config,
-        )
+        try:
+            return self._client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=generate_content_config,
+            )
+        except errors.APIError as e:
+            raw_code = getattr(e, "code", None)
+
+            try:
+                code = int(raw_code) if raw_code is not None else None
+            except (TypeError, ValueError):
+                code = None
+
+            details = str(e)  # garde le message original
+
+            # Ressources / quota / capacité
+            if code in (429, 503):
+                raise ResourceExhausted(
+                    status_code=code,
+                    message=(
+                        "Resource exhausted (quota/rate limit/capacity). "
+                        "Check limits: https://aistudio.google.com/rate-limit "
+                        f"| Details: {details}"
+                    ),
+                ) from e
+
+            # Optionnel: considérer 500 comme transient aussi (si tu veux retry)
+            # if code == 500:
+            #     raise ResourceExhausted(status_code=code, message=f"Transient server error | {details}") from e
+
+            raise ConnectorError(
+                f"GenAI API error (code={code}) | {details}"
+            ) from e
 
     # ----------------------------
     # Public helper: returns bytes ready to save
@@ -70,7 +103,7 @@ class TtsApi:
         - out_format="wav": always returns a valid WAV container (PCM).
         - out_format="mp3": returns MP3 bytes (requires ffmpeg installed).
         """
-        generation = self.genrate(
+        generation = self.generate(
             model=model,
             system_prompt=system_prompt,
             prompt=prompt,
