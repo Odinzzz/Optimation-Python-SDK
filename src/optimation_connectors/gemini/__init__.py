@@ -1,4 +1,4 @@
 from .client import GeminiClient
-from .exceptions import ResourceExhausted
+from .exceptions import ResourceExhausted, ConnectorError
 
-__all__ = ['GeminiClient', 'ResourceExhausted']
+__all__ = ['GeminiClient', 'ResourceExhausted', "ConnectorError"]
